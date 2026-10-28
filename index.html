@@ -1,0 +1,428 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SF2 Attendance</title>
+<meta name="theme-color" content="#1b6a51"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:light}body{margin:0}</style></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: phone-first app. Sticky header with month switcher, one view at a time, bottom tab bar. Mirrors the SF2 form: Boys block, Girls block, summary. */
+:root{
+  --bg:#f1f5f2; --surface:#ffffff; --surface2:#e8eeea; --ink:#13221b; --muted:#5a6a61; --line:#d6dfd9;
+  --accent:#1b6a51; --accent-ink:#ffffff;
+  --pre:#1b6a51; --pre-bg:#dcefe6;
+  --abs:#b0342a; --abs-bg:#fadfdb;
+  --half:#935c00; --half-bg:#fbebc9;
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1813; --surface:#16231d; --surface2:#1e2e26; --ink:#e5eee8; --muted:#90a398; --line:#294036;
+  --accent:#4fc196; --accent-ink:#062218;
+  --pre:#4fc196; --pre-bg:#17382c;
+  --abs:#ff9084; --abs-bg:#42201c;
+  --half:#f2bd5a; --half-bg:#3c2e12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1813; --surface:#16231d; --surface2:#1e2e26; --ink:#e5eee8; --muted:#90a398; --line:#294036;
+  --accent:#4fc196; --accent-ink:#062218;
+  --pre:#4fc196; --pre-bg:#17382c;
+  --abs:#ff9084; --abs-bg:#42201c;
+  --half:#f2bd5a; --half-bg:#3c2e12; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
+.wrap{max-width:760px;margin:0 auto;min-width:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);padding-block:12px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
+header.top h1{font-size:19px;letter-spacing:-.01em}
+header.top .sub{font-size:12.5px;color:var(--muted)}
+.monthnav{display:flex;align-items:center;gap:4px}
+.monthnav .lbl{font-weight:600;font-size:13px;letter-spacing:.06em;min-width:104px;text-align:center}
+.ib{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:20px;line-height:1}
+main{padding-block:14px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.card h2{font-size:16px;margin-bottom:8px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.warn{color:var(--abs);border-color:var(--abs)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13.5px}
+/* date strip */
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.dchip{flex:0 0 auto;min-width:52px;padding:6px 4px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:center;scroll-snap-align:center}
+.dchip b{display:block;font-family:var(--font-display);font-size:18px;line-height:1.1}
+.dchip span{font-size:11px;letter-spacing:.08em;color:var(--muted)}
+.dchip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.dchip.on span{color:var(--accent-ink)}
+.dchip.today:not(.on){border-color:var(--accent)}
+/* day summary */
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sum div{background:var(--surface2);border-radius:10px;padding:8px 10px}
+.sum b{display:block;font-family:var(--font-display);font-size:22px;font-variant-numeric:tabular-nums}
+.sum span{font-size:11.5px;color:var(--muted);letter-spacing:.04em}
+/* student rows */
+.grp{display:flex;justify-content:space-between;align-items:baseline;padding:2px 2px 6px}
+.grp h2{font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.list{display:flex;flex-direction:column}
+.stu{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.stu:first-child{border-top:0}
+.stu .no{width:22px;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right;flex:0 0 auto}
+.stu .nm{flex:1;min-width:0;font-weight:500;overflow-wrap:anywhere}
+.seg{display:flex;flex:0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{width:46px;height:44px;border:0;background:var(--surface);font-weight:700;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button.on.p{background:var(--pre-bg);color:var(--pre)}
+.seg button.on.x{background:var(--abs-bg);color:var(--abs)}
+.seg button.on.h{background:var(--half-bg);color:var(--half)}
+/* grid */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;font-size:13px;width:100%}
+th,td{padding:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}
+thead th{background:var(--surface2);font-weight:600;height:46px;min-width:36px;font-size:11.5px;line-height:1.15}
+thead th b{display:block;font-size:13px}
+td.n,th.n{position:sticky;left:0;background:var(--surface);text-align:left;padding:0 10px;min-width:150px;max-width:150px;overflow:hidden;text-overflow:ellipsis;z-index:1;border-right:2px solid var(--line)}
+thead th.n{background:var(--surface2);z-index:2}
+tr.tot td{background:var(--surface2);font-weight:600;height:34px}
+tr.tot td.n{background:var(--surface2)}
+tr.sec td{background:var(--bg);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;height:30px;text-align:left;padding-left:10px;color:var(--muted)}
+.cell{width:100%;min-width:36px;height:40px;border:0;background:transparent;font-weight:700;font-size:14px}
+.cell.x{background:var(--abs-bg);color:var(--abs)}
+.cell.h{background:var(--half-bg);color:var(--half)}
+td.r{min-width:44px;font-weight:600}
+/* report */
+.rt{width:100%;font-size:14px}
+.rt th{background:var(--surface2);height:36px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.rt td{height:40px;padding:4px 8px}
+.rt td:first-child,.rt th:first-child{text-align:left}
+.rt td.key{font-weight:500;white-space:normal}
+.rt td.v{font-variant-numeric:tabular-nums;font-weight:600;min-width:64px}
+.rt input{width:60px;height:34px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.formula{font-size:13px;display:grid;gap:10px}
+.formula div{background:var(--surface2);border-radius:10px;padding:10px 12px}
+.formula b{display:block;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.formula code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;overflow-wrap:anywhere}
+.rem{display:grid;grid-template-columns:1fr;gap:6px;padding:8px 0;border-top:1px solid var(--line)}
+.rem:first-of-type{border-top:0}
+.rem .nm{font-weight:500}
+.rem .f{display:flex;gap:6px}
+.rem select{flex:0 0 140px}
+.rem input{flex:1;min-width:0}
+input[type=text],input[type=number],select,textarea{height:42px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--bg);width:100%}
+textarea{height:auto;min-height:96px;padding:8px 10px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);min-width:0}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{font-size:11px;text-align:center;color:var(--muted);letter-spacing:.06em}
+.cal button{height:40px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-variant-numeric:tabular-nums;font-weight:600}
+.cal button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cal button.we:not(.on){color:var(--muted);background:var(--surface2)}
+/* tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:12px;font-weight:600;color:var(--muted);border-radius:10px;min-height:48px}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button.on{color:var(--accent);background:var(--pre-bg)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20;max-width:90vw}
+.box{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.box .in{background:var(--surface);border-radius:14px;padding:14px;width:100%;max-width:560px;display:grid;gap:10px}
+.box textarea{min-height:180px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.empty{text-align:center;padding:28px 12px;display:grid;gap:10px;justify-items:center}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:600;background:var(--surface2);color:var(--muted)}
+.pill.abs{background:var(--abs-bg);color:var(--abs)}
+@media (prefers-reduced-motion:no-preference){.dchip,.btn,.seg button{transition:background .12s,color .12s}}
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div style="min-width:0"><h1>SF2 Attendance</h1><div class="sub" id="sub"></div></div>
+    <div class="monthnav">
+      <button class="ib" data-act="mprev" aria-label="Previous month">‹</button>
+      <div class="lbl" id="mlbl"></div>
+      <button class="ib" data-act="mnext" aria-label="Next month">›</button>
+    </div>
+  </header>
+  <main id="view"></main>
+</div>
+<nav class="tabs" id="tabs">
+  <button data-tab="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>Check</button>
+  <button data-tab="grid"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16"/></svg>Month</button>
+  <button data-tab="report"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Report</button>
+  <button data-tab="class"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5a3 3 0 010 6M18 14.8c1.8.7 3 2.4 3 5.2"/></svg>Class</button>
+</nav>
+<div id="toast" class="toast" hidden></div>
+<div id="box" class="box" hidden><div class="in"><b id="boxT">Copy this text</b><textarea id="boxA" readonly></textarea><button class="btn pri" data-act="boxclose">Close</button></div></div>
+
+<script>
+(function(){
+"use strict";
+var KEY="sf2-attendance-v1";
+var MN=["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+var DW=["S","M","T","W","TH","F","S"];
+var $=function(s){return document.querySelector(s)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function uid(){return "s"+Math.random().toString(36).slice(2,9)}
+
+/* ---------- state ---------- */
+function seed(){
+  var boys=["ARIEM, JOHN RIC M.","ASIS, KING MARLOU STIFFEN F.","CAMPOS, IAN NIEL S.","CORDOVA, JHAY ZEUS","DARANG, EMMANUEL DAVE C.","DONDOY, KOBE JAY A.","MAG-ASO, MATHEW SMITH V.","PROCHINA, JOHN KYLE E.","ROCHINO, KENT JAYVY L.","SEREÑO, JOHN CLARENCE L.","TABALE, PHILIP","TOLENTINO, AXEL ZYANN"];
+  var girls=["ABARQUEZ, CUTIE JANE B.","BARRIOS, JANELLA JOVY-LYN O.","CUBIO, ALTHEA CLAIRE C.","OCLENARIA, SHEILA MAE P.","FEDERISO, RYEGIE A.","HAVANA, CYRASE LLYR VAN L.","HENETA, ROSELYN L.","JARDELIZA, NELLE YUUKI RASYIED V.","LIBRES, JAYRAMAE GALE B.","NAVAS, ARYAN S.","VARGAS, CLEA VANISH A."];
+  var st=[];
+  boys.forEach(function(n){st.push({id:uid(),name:n,sex:"M"})});
+  girls.forEach(function(n){st.push({id:uid(),name:n,sex:"F"})});
+  return {v:1,school:{id:"131652",name:"EAST BUNAWAN CENTRAL ELEMENTARY SCHOOL",sy:"2026-2027",grade:"3",section:"NARRA",adviser:"ESZEL A. BACOY",head:"LARRY E. MARCOS, PhD"},
+    enrol:{M:boys.length,F:girls.length},students:st,months:{}};
+}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&o.students)return o}}catch(e){}return null}
+var S=load()||seed();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+var now=new Date();
+var ui={tab:"check",month:now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0"),day:null,cal:false,confirm:null};
+try{var t=localStorage.getItem(KEY+"-tab");if(t)ui.tab=t}catch(e){}
+
+function ym(key){var p=key.split("-");return{y:+p[0],m:+p[1]}}
+function dim(key){var a=ym(key);return new Date(a.y,a.m,0).getDate()}
+function dow(key,d){var a=ym(key);return new Date(a.y,a.m-1,d).getDay()}
+function mon(key){
+  if(!S.months[key]){
+    var a=ym(key),n=dim(key),days=[],end=new Date();end.setHours(23,59,59,999);
+    for(var d=1;d<=n;d++){var dt=new Date(a.y,a.m-1,d),w=dt.getDay();if(w>0&&w<6&&dt<=end)days.push(d)}
+    S.months[key]={days:days,marks:{},rem:{},late:{M:0,F:0}};save();
+  }
+  return S.months[key];
+}
+function sortedDays(M){return M.days.slice().sort(function(a,b){return a-b})}
+function mark(M,id,d){return (M.marks[id]||{})[d]||""}
+function setMark(M,id,d,v){if(!M.marks[id])M.marks[id]={};if(v)M.marks[id][d]=v;else delete M.marks[id][d]}
+function by(sx){return S.students.filter(function(s){return s.sex===sx})}
+function val(v){return v==="x"?1:v==="h"?0.5:0}
+function fmt(n){return n==null||isNaN(n)?"—":(Math.round(n*100)/100).toString()}
+function pct(n){return n==null||!isFinite(n)?"—":(n*100).toFixed(2)+"%"}
+
+/* ---------- SF2 monthly report formulas ---------- */
+function calc(key){
+  var M=mon(key),days=sortedDays(M),N=days.length,out={N:N,days:days,g:{}};
+  ["M","F"].forEach(function(sx){
+    var st=by(sx),reg=st.length;
+    var per=st.map(function(s){
+      var abs=0,run=0,max=0;
+      days.forEach(function(d){var v=mark(M,s.id,d);
+        if(v==="x"){abs+=1;run++;if(run>max)max=run}else{if(v==="h")abs+=0.5;run=0}});
+      return {s:s,abs:abs,pres:N-abs,max:max};
+    });
+    var perDay=days.map(function(d){return reg-st.reduce(function(a,s){return a+val(mark(M,s.id,d))},0)});
+    var totalAbs=per.reduce(function(a,p){return a+p.abs},0);
+    var totalPres=per.reduce(function(a,p){return a+p.pres},0);
+    var enrol=+S.enrol[sx]||0;
+    var rem=function(label){return st.filter(function(s){return (M.rem[s.id]||{}).st===label}).length};
+    var ada=N?totalPres/N:null;
+    out.g[sx]={reg:reg,per:per,perDay:perDay,totalAbs:totalAbs,totalPres:totalPres,enrol:enrol,late:+M.late[sx]||0,
+      pctEnrol:enrol?reg/enrol:null,ada:ada,pctAtt:(ada!=null&&reg)?ada/reg:null,
+      run5:per.filter(function(p){return p.max>=5}).length,nls:rem("NLS"),tout:rem("Transferred Out"),tin:rem("Transferred In")};
+  });
+  var a=out.g.M,b=out.g.F,t={};
+  t.reg=a.reg+b.reg;t.enrol=a.enrol+b.enrol;t.late=a.late+b.late;t.totalPres=a.totalPres+b.totalPres;t.totalAbs=a.totalAbs+b.totalAbs;
+  t.pctEnrol=t.enrol?t.reg/t.enrol:null;t.ada=out.N?t.totalPres/out.N:null;t.pctAtt=(t.ada!=null&&t.reg)?t.ada/t.reg:null;
+  t.run5=a.run5+b.run5;t.nls=a.nls+b.nls;t.tout=a.tout+b.tout;t.tin=a.tin+b.tin;
+  t.perDay=days.map(function(d,i){return a.perDay[i]+b.perDay[i]});
+  out.g.T=t;return out;
+}
+
+/* ---------- helpers ---------- */
+function toast(m){var t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},2200)}
+function showBox(title,text){$("#boxT").textContent=title;var a=$("#boxA");a.value=text;$("#box").hidden=false;a.focus();a.select()}
+function copy(text,label){
+  var done=function(){toast(label+" copied")};
+  try{navigator.clipboard.writeText(text).then(done,function(){showBox("Select all and copy",text)})}
+  catch(e){showBox("Select all and copy",text)}
+}
+function pickDay(M,days){
+  if(ui.day&&days.indexOf(ui.day)>-1)return ui.day;
+  var a=ym(ui.month),isNow=a.y===now.getFullYear()&&a.m===now.getMonth()+1;
+  if(isNow&&days.indexOf(now.getDate())>-1)return now.getDate();
+  return days.length?days[days.length-1]:null;
+}
+function chipHTML(key,d,on){
+  var a=ym(key),isT=a.y===now.getFullYear()&&a.m===now.getMonth()+1&&d===now.getDate();
+  return '<button class="dchip'+(on?' on':'')+(isT?' today':'')+'" data-act="day" data-d="'+d+'"><span>'+DW[dow(key,d)]+'</span><b>'+d+'</b></button>';
+}
+function calHTML(key,M){
+  var n=dim(key),first=dow(key,1),h="";
+  DW.forEach(function(w){h+='<div class="h">'+w+'</div>'});
+  for(var i=0;i<first;i++)h+='<div></div>';
+  for(var d=1;d<=n;d++){var w=dow(key,d),on=M.days.indexOf(d)>-1;
+    h+='<button data-act="cday" data-d="'+d+'" class="'+(on?'on':'')+(w===0||w===6?' we':'')+'" aria-pressed="'+on+'">'+d+'</button>'}
+  return '<div class="cal">'+h+'</div>';
+}
+
+/* ---------- views ---------- */
+function vCheck(){
+  var key=ui.month,M=mon(key),days=sortedDays(M);
+  var cal='<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Class days</h2><span class="pill">'+days.length+' school days</span></div>'+
+    '<p class="small muted" style="margin:6px 0 10px">Tap a date to add or remove it. Remove holidays and suspended days. Only class days count in the report.</p>'+calHTML(key,M)+'</div>';
+  if(!days.length){
+    return '<div class="card empty"><b>No class days set for '+MN[ym(key).m-1]+'</b><span class="muted small">Pick the days when classes were held.</span></div>'+cal;
+  }
+  var d=ui.day=pickDay(M,days);
+  var strip='<div class="strip" id="strip">'+days.map(function(x){return chipHTML(key,x,x===d)}).join("")+'</div>';
+  var A={M:0,F:0};
+  ["M","F"].forEach(function(sx){by(sx).forEach(function(s){A[sx]+=val(mark(M,s.id,d))})});
+  var rM=by("M").length,rF=by("F").length;
+  var sum='<div class="card"><div class="sum"><div><b>'+fmt(rM+rF-A.M-A.F)+'</b><span>PRESENT</span></div><div><b>'+fmt(A.M+A.F)+'</b><span>ABSENT</span></div><div><b>'+fmt(rM-A.M)+' / '+fmt(rF-A.F)+'</b><span>BOYS / GIRLS PRESENT</span></div></div>'+
+    '<p class="small muted" style="margin:10px 0 0"><b>P</b> present · <b>X</b> absent · <b>½</b> half-day. Learners are present unless marked.</p></div>';
+  function group(sx,title){
+    var st=by(sx);
+    var rows=st.map(function(s,i){var v=mark(M,s.id,d);
+      return '<div class="stu"><span class="no">'+(i+1)+'</span><span class="nm">'+esc(s.name)+'</span>'+
+        '<div class="seg" role="group" aria-label="'+esc(s.name)+'">'+
+        '<button class="p'+(!v?' on':'')+'" data-act="set" data-id="'+s.id+'" data-v="" aria-label="Present">P</button>'+
+        '<button class="x'+(v==="x"?' on':'')+'" data-act="set" data-id="'+s.id+'" data-v="x" aria-label="Absent">X</button>'+
+        '<button class="h'+(v==="h"?' on':'')+'" data-act="set" data-id="'+s.id+'" data-v="h" aria-label="Half-day">½</button></div></div>'}).join("");
+    return '<div class="card"><div class="grp"><h2>'+title+'</h2><span class="small muted">'+(st.length-(sx==="M"?A.M:A.F))+' of '+st.length+' present</span></div><div class="list">'+(rows||'<p class="muted small">No learners yet. Add them in the Class tab.</p>')+'</div></div>';
+  }
+  var reset='<div class="row"><button class="btn warn sm" data-act="resetday">'+(ui.confirm==="resetday"?"Tap again to confirm":"Mark everyone present for this day")+'</button><button class="btn sm" data-act="togglecal">'+(ui.cal?"Hide":"Edit")+' class days</button></div>';
+  return strip+sum+group("M","Boys")+group("F","Girls")+reset+(ui.cal?cal:"");
+}
+
+function vGrid(){
+  var key=ui.month,M=mon(key),days=sortedDays(M),c=calc(key);
+  if(!days.length)return '<div class="card empty"><b>No class days yet</b><span class="muted small">Set the class days in the Check tab.</span></div>';
+  var head='<thead><tr><th class="n">Learner</th>'+days.map(function(d){return '<th><b>'+d+'</b>'+DW[dow(key,d)]+'</th>'}).join("")+'<th class="r">Abs</th><th class="r">Pres</th></tr></thead>';
+  function block(sx,title){
+    var g=c.g[sx],h='<tr class="sec"><td colspan="'+(days.length+3)+'">'+title+'</td></tr>';
+    g.per.forEach(function(p,i){
+      h+='<tr><td class="n">'+(i+1)+'. '+esc(p.s.name)+'</td>'+days.map(function(d){var v=mark(M,p.s.id,d);
+        return '<td><button class="cell '+v+'" data-act="cyc" data-id="'+p.s.id+'" data-d="'+d+'" aria-label="'+esc(p.s.name)+' day '+d+'">'+(v==="x"?"x":v==="h"?"h":"")+'</button></td>'}).join("")+
+        '<td class="r">'+fmt(p.abs)+'</td><td class="r">'+fmt(p.pres)+'</td></tr>';
+    });
+    h+='<tr class="tot"><td class="n">'+title+' total per day</td>'+g.perDay.map(function(x){return '<td>'+fmt(x)+'</td>'}).join("")+'<td class="r">'+fmt(g.totalAbs)+'</td><td class="r">'+fmt(g.totalPres)+'</td></tr>';
+    return h;
+  }
+  var comb='<tr class="tot"><td class="n">Combined total per day</td>'+c.g.T.perDay.map(function(x){return '<td>'+fmt(x)+'</td>'}).join("")+'<td class="r">'+fmt(c.g.T.totalAbs)+'</td><td class="r">'+fmt(c.g.T.totalPres)+'</td></tr>';
+  return '<p class="small muted" style="margin:0">Tap a box to cycle blank (present) → x (absent) → h (half-day). Same layout as the SF2 grid.</p><div class="tw"><table>'+head+'<tbody>'+block("M","Boys")+block("F","Girls")+comb+'</tbody></table></div>';
+}
+
+function vReport(){
+  var key=ui.month,M=mon(key),c=calc(key),a=c.g.M,b=c.g.F,t=c.g.T,N=c.N,a2=ym(key);
+  function r(label,fa,fb,ft){return '<tr><td class="key">'+label+'</td><td class="v">'+fa+'</td><td class="v">'+fb+'</td><td class="v">'+ft+'</td></tr>'}
+  var tbl='<table class="rt"><thead><tr><th>Summary for the month</th><th>M</th><th>F</th><th>Total</th></tr></thead><tbody>'+
+    '<tr><td class="key">Enrolment as of 1st Friday of the SY</td><td><input type="number" min="0" inputmode="numeric" data-enrol="M" value="'+a.enrol+'" aria-label="Boys enrolment"></td><td><input type="number" min="0" inputmode="numeric" data-enrol="F" value="'+b.enrol+'" aria-label="Girls enrolment"></td><td class="v">'+t.enrol+'</td></tr>'+
+    '<tr><td class="key">Late enrolment during the month (beyond cut-off)</td><td><input type="number" min="0" inputmode="numeric" data-late="M" value="'+a.late+'" aria-label="Boys late enrolment"></td><td><input type="number" min="0" inputmode="numeric" data-late="F" value="'+b.late+'" aria-label="Girls late enrolment"></td><td class="v">'+t.late+'</td></tr>'+
+    r("Registered learners as of end of the month",a.reg,b.reg,t.reg)+
+    r("Percentage of enrolment as of end of the month",pct(a.pctEnrol),pct(b.pctEnrol),pct(t.pctEnrol))+
+    r("Total daily attendance",fmt(a.totalPres),fmt(b.totalPres),fmt(t.totalPres))+
+    r("Average daily attendance",fmt(a.ada),fmt(b.ada),fmt(t.ada))+
+    r("Percentage of attendance for the month",pct(a.pctAtt),pct(b.pctAtt),pct(t.pctAtt))+
+    r("Learners with 5 consecutive days of absences",a.run5,b.run5,t.run5)+
+    r("NLS",a.nls,b.nls,t.nls)+r("Transferred out",a.tout,b.tout,t.tout)+r("Transferred in",a.tin,b.tin,t.tin)+
+    '</tbody></table>';
+  var head='<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">'+MN[a2.m-1]+' '+a2.y+'</h2><span class="pill">'+N+' school days</span></div>'+
+    '<p class="small muted" style="margin:6px 0 10px">Grade '+esc(S.school.grade)+' – '+esc(S.school.section)+' · '+esc(S.school.name)+'</p><div class="tw" style="border:0">'+tbl+'</div></div>';
+  var f='<div class="card"><h2>How these are computed (SF2)</h2><div class="formula">'+
+    '<div><b>Learner absent / present</b><code>absent = count of x + 0.5 × count of h<br>present = '+N+' school days − absent</code></div>'+
+    '<div><b>Percentage of enrolment</b><code>registered at end of month ÷ enrolment as of 1st Friday × 100<br>= '+t.reg+' ÷ '+t.enrol+' = '+pct(t.pctEnrol)+'</code></div>'+
+    '<div><b>Average daily attendance</b><code>total daily attendance ÷ school days<br>= '+fmt(t.totalPres)+' ÷ '+N+' = '+fmt(t.ada)+'</code></div>'+
+    '<div><b>Percentage of attendance</b><code>average daily attendance ÷ registered learners × 100<br>= '+fmt(t.ada)+' ÷ '+t.reg+' = '+pct(t.pctAtt)+'</code></div></div></div>';
+  var rems=S.students.map(function(s){var m=M.rem[s.id]||{};
+    return '<div class="rem"><span class="nm">'+esc(s.name)+' <span class="pill">'+(s.sex==="M"?"Boy":"Girl")+'</span></span><div class="f"><select data-rst="'+s.id+'" aria-label="Status of '+esc(s.name)+'"><option value="">Enrolled</option>'+
+      ["NLS","Transferred Out","Transferred In"].map(function(o){return '<option'+(m.st===o?' selected':'')+'>'+o+'</option>'}).join("")+
+      '</select><input type="text" data-rnote="'+s.id+'" placeholder="Reason or school name" value="'+esc(m.note||"")+'" aria-label="Remarks for '+esc(s.name)+'"></div></div>'}).join("");
+  var remCard='<div class="card"><h2>Remarks column</h2><p class="small muted" style="margin:0 0 6px">Mark NLS or transfers here. The report counts them like the SF2 remarks column.</p>'+(rems||'<p class="muted small">No learners yet.</p>')+'</div>';
+  var ex='<div class="card"><h2>Move this month into your Excel SF2</h2><p class="small muted" style="margin:0 0 10px">Copy, then paste into the SF2 sheet. The x and h marks line up with your date columns in order.</p>'+
+    '<div class="row"><button class="btn pri" data-act="copyM">Copy Boys marks (paste at G13)</button><button class="btn pri" data-act="copyF">Copy Girls marks (paste at G64)</button><button class="btn" data-act="copySum">Copy summary</button></div></div>';
+  return head+f+remCard+ex;
+}
+
+function vClass(){
+  var s=S.school;
+  function fld(k,label){return '<label class="f">'+label+'<input type="text" data-school="'+k+'" value="'+esc(s[k])+'"></label>'}
+  var info='<div class="card"><h2>School and class</h2><div class="fg">'+fld("id","School ID")+fld("sy","School year")+fld("grade","Grade level")+fld("section","Section")+'</div><div class="fg" style="margin-top:10px">'+fld("name","Name of school")+fld("adviser","Adviser")+fld("head","School head")+'</div></div>';
+  function lst(sx,title){
+    var st=by(sx);
+    return '<div class="card"><div class="grp"><h2>'+title+'</h2><span class="small muted">'+st.length+' learners</span></div><div class="list">'+
+      (st.map(function(p,i){
+        return '<div class="stu"><span class="no">'+(i+1)+'</span><span class="nm">'+esc(p.name)+'</span>'+
+          '<button class="btn sm" data-act="flip" data-id="'+p.id+'">'+(sx==="M"?"Move to Girls":"Move to Boys")+'</button>'+
+          '<button class="btn sm warn" data-act="del" data-id="'+p.id+'">'+(ui.confirm==="del"+p.id?"Confirm":"Remove")+'</button></div>'}).join("")||'<p class="muted small">None yet.</p>')+'</div></div>';
+  }
+  var add='<div class="card"><h2>Add learners</h2><p class="small muted" style="margin:0 0 8px">Type one name per line, in the order Last name, First name, Middle initial. You can paste a whole class list.</p>'+
+    '<textarea id="newNames" placeholder="DELA CRUZ, JUAN P.&#10;SANTOS, MARIA L."></textarea><div class="row" style="margin-top:8px"><select id="newSex" style="width:auto"><option value="M">Boys</option><option value="F">Girls</option></select><button class="btn pri" data-act="addnames">Add to class</button></div></div>';
+  var bk='<div class="card"><h2>Backup</h2><p class="small muted" style="margin:0 0 8px">Attendance is saved on this phone only. Copy a backup now and then, and keep it in your notes or messages.</p>'+
+    '<div class="row"><button class="btn" data-act="backup">Copy backup</button><button class="btn" data-act="restoreopen">Restore from backup</button></div>'+
+    (ui.restore?'<textarea id="restoreText" placeholder="Paste backup text here" style="margin-top:8px"></textarea><button class="btn pri" style="margin-top:8px" data-act="restore">Restore now</button>':"")+'</div>';
+  return info+lst("M","Boys")+lst("F","Girls")+add+bk;
+}
+
+function render(){
+  var a=ym(ui.month);
+  $("#mlbl").textContent=MN[a.m-1].slice(0,3)+" "+a.y;
+  $("#sub").textContent="Grade "+S.school.grade+" – "+S.school.section+" · SY "+S.school.sy;
+  document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.dataset.tab===ui.tab);b.setAttribute("aria-current",b.dataset.tab===ui.tab?"page":"false")});
+  var v={check:vCheck,grid:vGrid,report:vReport,"class":vClass}[ui.tab]();
+  var sx=0,el=$("#strip");if(el)sx=el.scrollLeft;
+  var py=window.scrollY;
+  $("#view").innerHTML=v;
+  var st=$("#strip");if(st){var on=st.querySelector(".on");if(sx)st.scrollLeft=sx;else if(on)st.scrollLeft=on.offsetLeft-st.clientWidth/2+on.clientWidth/2}
+  window.scrollTo(0,py);
+}
+
+/* ---------- export ---------- */
+function gridTSV(sx){
+  var key=ui.month,M=mon(key),days=sortedDays(M);
+  return by(sx).map(function(s){return days.map(function(d){return mark(M,s.id,d)}).join("\t")}).join("\n");
+}
+function summaryText(){
+  var key=ui.month,c=calc(key),a=ym(key),g=c.g;
+  var L=["SF2 Summary for "+MN[a.m-1]+" "+a.y+" — Grade "+S.school.grade+" "+S.school.section,"School days: "+c.N,"\tM\tF\tTotal"];
+  function row(n,k,f){L.push([n,f(g.M[k]),f(g.F[k]),f(g.T[k])].join("\t"))}
+  row("Enrolment (1st Friday)","enrol",fmt);row("Late enrolment","late",fmt);row("Registered learners","reg",fmt);row("% of enrolment","pctEnrol",pct);
+  row("Total daily attendance","totalPres",fmt);row("Average daily attendance","ada",fmt);row("% of attendance","pctAtt",pct);
+  row("5 consecutive absences","run5",fmt);row("NLS","nls",fmt);row("Transferred out","tout",fmt);row("Transferred in","tin",fmt);
+  return L.join("\n");
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",function(e){
+  var tb=e.target.closest("[data-tab]");
+  if(tb){ui.tab=tb.dataset.tab;ui.confirm=null;try{localStorage.setItem(KEY+"-tab",ui.tab)}catch(x){}render();window.scrollTo(0,0);return}
+  var el=e.target.closest("[data-act]");if(!el)return;
+  var act=el.dataset.act,M=mon(ui.month),id=el.dataset.id,d=+el.dataset.d;
+  if(act==="mprev"||act==="mnext"){var a=ym(ui.month),m=a.m-1+(act==="mnext"?1:-1);var dt=new Date(a.y,m,1);
+    ui.month=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0");ui.day=null;ui.confirm=null;render();return}
+  if(act==="day"){ui.day=d;render();return}
+  if(act==="set"){setMark(M,id,ui.day,el.dataset.v);save();render();return}
+  if(act==="cyc"){var v=mark(M,id,d);setMark(M,id,d,v===""?"x":v==="x"?"h":"");save();render();return}
+  if(act==="togglecal"){ui.cal=!ui.cal;render();return}
+  if(act==="cday"){var i=M.days.indexOf(d);if(i>-1)M.days.splice(i,1);else M.days.push(d);save();render();return}
+  if(act==="resetday"){if(ui.confirm==="resetday"){S.students.forEach(function(s){setMark(M,s.id,ui.day,"")});ui.confirm=null;save();toast("Everyone marked present")}else{ui.confirm="resetday"}render();return}
+  if(act==="copyM"){copy(gridTSV("M"),"Boys marks");return}
+  if(act==="copyF"){copy(gridTSV("F"),"Girls marks");return}
+  if(act==="copySum"){copy(summaryText(),"Summary");return}
+  if(act==="flip"){S.students.forEach(function(s){if(s.id===id)s.sex=s.sex==="M"?"F":"M"});save();render();return}
+  if(act==="del"){if(ui.confirm==="del"+id){S.students=S.students.filter(function(s){return s.id!==id});ui.confirm=null;save();toast("Learner removed")}else{ui.confirm="del"+id}render();return}
+  if(act==="addnames"){var tx=$("#newNames").value.split("\n").map(function(x){return x.trim()}).filter(Boolean),sx=$("#newSex").value;
+    if(!tx.length){toast("Type at least one name");return}
+    tx.forEach(function(n){S.students.push({id:uid(),name:n.toUpperCase(),sex:sx})});save();toast(tx.length+" added");render();return}
+  if(act==="backup"){copy(JSON.stringify(S),"Backup");return}
+  if(act==="restoreopen"){ui.restore=!ui.restore;render();return}
+  if(act==="restore"){try{var o=JSON.parse($("#restoreText").value);if(!o||!o.students||!o.school)throw 0;S=o;save();ui.restore=false;toast("Backup restored");render()}catch(x){toast("That text is not a valid backup")}return}
+  if(act==="boxclose"){$("#box").hidden=true;return}
+});
+document.addEventListener("change",function(e){
+  var t=e.target,M=mon(ui.month);
+  if(t.dataset.school){S.school[t.dataset.school]=t.value.trim();save();$("#sub").textContent="Grade "+S.school.grade+" – "+S.school.section+" · SY "+S.school.sy;return}
+  if(t.dataset.enrol){S.enrol[t.dataset.enrol]=Math.max(0,+t.value||0);save();render();return}
+  if(t.dataset.late){M.late[t.dataset.late]=Math.max(0,+t.value||0);save();render();return}
+  if(t.dataset.rst){M.rem[t.dataset.rst]=M.rem[t.dataset.rst]||{};M.rem[t.dataset.rst].st=t.value;save();render();return}
+  if(t.dataset.rnote){M.rem[t.dataset.rnote]=M.rem[t.dataset.rnote]||{};M.rem[t.dataset.rnote].note=t.value;save();return}
+});
+render();
+})();
+</script>
+<script>if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(function(){});</script></body></html>
